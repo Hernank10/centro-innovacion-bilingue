@@ -1,0 +1,404 @@
+{% extends "base_juegos.html" %}
+
+{% block title %}Aventura Educativa - Niveles{% endblock %}
+
+{% block game_breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'juegos:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Aventura Educativa</li>
+{% endblock %}
+
+{% block game_content %}
+<!-- Header del juego con estadísticas -->
+<div class="game-header">
+    <div class="d-flex flex-wrap justify-content-between align-items-center">
+        <div>
+            <h1 class="game-title display-5 mb-2">
+                <i class="fas fa-map me-3 text-primary"></i>Aventura Educativa
+            </h1>
+            <p class="lead text-muted mb-0">¡Explora mundos, supera desafíos y aprende en cada nivel!</p>
+        </div>
+        
+        <!-- Stats rápidas del jugador -->
+        <div class="d-flex gap-3 mt-3 mt-md-0">
+            <div class="text-center px-3 py-2 bg-light rounded">
+                <small class="text-muted d-block">Niveles</small>
+                <span class="h5 mb-0">{{ stats.niveles_completados }}/{{ niveles|length }}</span>
+            </div>
+            <div class="text-center px-3 py-2 bg-light rounded">
+                <small class="text-muted d-block">Puntos</small>
+                <span class="h5 mb-0">{{ stats.puntuacion_total }}</span>
+            </div>
+            <div class="text-center px-3 py-2 bg-light rounded">
+                <small class="text-muted d-block">Tiempo</small>
+                <span class="h5 mb-0">{{ stats.tiempo_total|default:"0h" }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Barra de progreso general -->
+    <div class="mt-4">
+        <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Progreso general</span>
+            <span class="badge bg-primary">{{ stats.niveles_completados|default:0 }}/{{ niveles|length }} niveles</span>
+        </div>
+        <div class="progress" style="height: 12px;">
+            {% with progreso=stats.niveles_completados|default:0 %}
+            <div class="progress-bar progress-bar-game" 
+                 style="width: {% if niveles|length > 0 %}{{ progreso|floatformat:0 }}%{% else %}0%{% endif %}"
+                 role="progressbar"></div>
+            {% endwith %}
+        </div>
+    </div>
+</div>
+
+<!-- Mapa de niveles interactivo -->
+<div class="game-levels-map mb-5">
+    <!-- Línea conectora de niveles (solo visible en desktop) -->
+    <div class="position-relative d-none d-md-block" style="height: 50px;">
+        <div class="position-absolute w-100" style="top: 25px; border-top: 3px dashed #dee2e6; z-index: 1;"></div>
+    </div>
+    
+    <!-- Grid de niveles -->
+    <div class="row g-4">
+        {% for nivel in niveles %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="game-card nivel-card position-relative h-100 {% if nivel.bloqueado %}bloqueado opacity-50{% endif %}"
+                 data-nivel="{{ nivel.nivel }}"
+                 data-completado="{{ nivel.completado|yesno:'true,false' }}">
+                
+                <!-- Estado visual del nivel -->
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3">
+                    <span class="badge {% if nivel.completado %}bg-success{% elif nivel.bloqueado %}bg-secondary{% else %}bg-primary pulse-animation{% endif %}">
+                        Nivel {{ nivel.nivel }}
+                    </span>
+                    
+                    {% if nivel.completado %}
+                    <span class="text-success">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </span>
+                    {% elif nivel.bloqueado %}
+                    <span class="text-secondary">
+                        <i class="fas fa-lock fa-2x"></i>
+                    </span>
+                    {% else %}
+                    <span class="text-primary">
+                        <i class="fas fa-lock-open fa-2x"></i>
+                    </span>
+                    {% endif %}
+                </div>
+                
+                <!-- Icono del nivel (cambia según estado) -->
+                <div class="card-body text-center">
+                    <div class="nivel-icono display-2 mb-3">
+                        {% if nivel.completado %}
+                            <i class="fas fa-flag-checkered text-success"></i>
+                        {% elif nivel.bloqueado %}
+                            <i class="fas fa-{{ nivel.icono|default:'mountain' }} text-secondary"></i>
+                        {% else %}
+                            <i class="fas fa-{{ nivel.icono|default:'play-circle' }} text-primary pulsate"></i>
+                        {% endif %}
+                    </div>
+                    
+                    <h3 class="h5 fw-bold mb-2">{{ nivel.titulo }}</h3>
+                    <p class="small text-muted mb-3">{{ nivel.descripcion|truncatechars:80 }}</p>
+                    
+                    <!-- Estrellas de dificultad -->
+                    <div class="dificultad mb-3">
+                        <small class="text-muted me-2">Dificultad:</small>
+                        {% for i in "123"|make_list %}
+                            {% if forloop.counter <= nivel.dificultad %}
+                                <i class="fas fa-star text-warning"></i>
+                            {% else %}
+                                <i class="far fa-star text-muted"></i>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Tiempo estimado -->
+                    <div class="tiempo-estimado small text-muted mb-3">
+                        <i class="far fa-clock me-1"></i> {{ nivel.tiempo_estimado|default:"15-20" }} min
+                    </div>
+                    
+                    <!-- Recompensas -->
+                    <div class="recompensas d-flex justify-content-center gap-2 mb-3">
+                        <span class="badge bg-info" data-bs-toggle="tooltip" title="Puntos base">
+                            <i class="fas fa-star me-1"></i>{{ nivel.recompensa_puntos }} pts
+                        </span>
+                        {% if nivel.recompensa_item %}
+                        <span class="badge bg-success" data-bs-toggle="tooltip" title="Item especial">
+                            <i class="fas fa-gift me-1"></i>{{ nivel.recompensa_item.nombre }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Botón de acción -->
+                    <div class="d-grid gap-2">
+                        {% if nivel.bloqueado %}
+                            <button class="btn btn-secondary" disabled>
+                                <i class="fas fa-lock me-2"></i>Bloqueado
+                            </button>
+                            <small class="text-muted">Completa el nivel {{ nivel.nivel|add:"-1" }} para desbloquear</small>
+                        {% else %}
+                            <a href="{% url 'juegos:aventura_jugar' nivel.id %}" 
+                               class="btn {% if nivel.completado %}btn-outline-primary{% else %}btn-game{% endif %} btn-lg">
+                                {% if nivel.completado %}
+                                    <i class="fas fa-redo-alt me-2"></i>Rejugarlo
+                                {% else %}
+                                    <i class="fas fa-play me-2"></i>Jugar ahora
+                                {% endif %}
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Pie del nivel con puntuación obtenida (si completado) -->
+                {% if nivel.completado %}
+                <div class="card-footer bg-transparent text-center py-2">
+                    <div class="row small">
+                        <div class="col-6">
+                            <span class="text-muted">Mejor puntuación:</span>
+                            <span class="fw-bold text-success">{{ nivel.puntuacion_obtenida }}</span>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-muted">Estrellas:</span>
+                            {% with estrellas=nivel.puntuacion_obtenida|default:0|add:"0"|floatformat:0 %}
+                                {% for i in "123"|make_list %}
+                                    {% if forloop.counter <= estrellas %}
+                                        <i class="fas fa-star text-warning"></i>
+                                    {% else %}
+                                        <i class="far fa-star text-muted"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <!-- Mensaje si no hay niveles -->
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-map fa-4x text-muted mb-3"></i>
+                <h3>No hay niveles disponibles</h3>
+                <p class="text-muted">Pronto añadiremos nuevos niveles para ti</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Sección de niveles especiales / desafíos -->
+{% if niveles_especiales %}
+<div class="desafios-especiales mt-5">
+    <h3 class="text-white mb-4">
+        <i class="fas fa-star me-2"></i>Desafíos especiales
+    </h3>
+    
+    <div class="row">
+        {% for nivel in niveles_especiales %}
+        <div class="col-md-4 mb-3">
+            <div class="game-card bg-warning text-dark border-0">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-crown fa-2x"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="mb-0">{{ nivel.titulo }}</h5>
+                            <small>{{ nivel.descripcion|truncatechars:50 }}</small>
+                        </div>
+                    </div>
+                    <a href="#" class="btn btn-dark w-100">
+                        <i class="fas fa-bolt me-2"></i>Aceptar desafío
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Leyenda del mapa -->
+<div class="leyenda-mapa mt-4 p-3 bg-light rounded">
+    <div class="d-flex flex-wrap gap-4 justify-content-center">
+        <span><i class="fas fa-circle text-primary me-2"></i>Disponible</span>
+        <span><i class="fas fa-circle text-success me-2"></i>Completado</span>
+        <span><i class="fas fa-circle text-secondary me-2"></i>Bloqueado</span>
+        <span><i class="fas fa-star text-warning me-2"></i>Dificultad</span>
+        <span><i class="fas fa-gift text-info me-2"></i>Recompensa especial</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Inicializar tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
+        // Animación al hacer hover sobre los niveles
+        $('.nivel-card').hover(
+            function() {
+                if (!$(this).hasClass('bloqueado')) {
+                    $(this).css('transform', 'translateY(-10px)');
+                    $(this).css('box-shadow', '0 20px 40px rgba(0,0,0,0.2)');
+                }
+            },
+            function() {
+                $(this).css('transform', 'translateY(0)');
+                $(this).css('box-shadow', '0 5px 15px rgba(0,0,0,0.1)');
+            }
+        );
+        
+        // Efecto de pulsación para niveles disponibles
+        $('.nivel-card:not(.bloqueado) .pulsate').each(function() {
+            $(this).css('animation', 'pulse 2s infinite');
+        });
+        
+        // Mostrar mensaje de confirmación para rejugar
+        $('.btn-outline-primary').click(function(e) {
+            if (!confirm('¿Quieres volver a jugar este nivel? Tu puntuación anterior se guardará.')) {
+                e.preventDefault();
+            }
+        });
+        
+        // Animación de progreso
+        $('.progress-bar').each(function() {
+            var width = $(this).css('width');
+            $(this).css('width', '0%');
+            $(this).animate({ width: width }, 1000);
+        });
+    });
+    
+    // Función para ver detalles del nivel
+    function verDetallesNivel(nivelId) {
+        $.get('/juegos/api/nivel/' + nivelId + '/', function(data) {
+            if (data.success) {
+                // Mostrar modal con detalles
+                var modalHtml = `
+                    <div class="modal fade" id="detalleModal" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">${data.nivel.titulo}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>${data.nivel.descripcion_completa}</p>
+                                    <h6>Recompensas:</h6>
+                                    <ul>
+                                        ${data.nivel.recompensas.map(r => `<li>${r}</li>`).join('')}
+                                    </ul>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                $('body').append(modalHtml);
+                var modal = new bootstrap.Modal(document.getElementById('detalleModal'));
+                modal.show();
+                
+                $('#detalleModal').on('hidden.bs.modal', function() {
+                    $(this).remove();
+                });
+            }
+        });
+    }
+</script>
+
+<style>
+    /* Animaciones personalizadas */
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    .nivel-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .nivel-card:hover .nivel-icono {
+        transform: rotate(5deg) scale(1.1);
+    }
+    
+    .nivel-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+        transform: rotate(45deg);
+        transition: all 0.6s;
+        opacity: 0;
+    }
+    
+    .nivel-card:hover::before {
+        opacity: 1;
+        transform: rotate(45deg) translate(50%, 50%);
+    }
+    
+    .nivel-icono {
+        transition: all 0.3s ease;
+    }
+    
+    .bloqueado {
+        filter: grayscale(0.5);
+        cursor: not-allowed;
+    }
+    
+    .bloqueado:hover {
+        transform: none !important;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Línea conectora animada */
+    .game-levels-map {
+        position: relative;
+    }
+    
+    .game-levels-map::before {
+        content: '';
+        position: absolute;
+        top: 50px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+        background-size: 200% 100%;
+        animation: gradientMove 3s linear infinite;
+        z-index: 0;
+    }
+    
+    @keyframes gradientMove {
+        0% { background-position: 0% 50%; }
+        100% { background-position: 200% 50%; }
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .game-levels-map::before {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}

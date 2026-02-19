@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.cache/
+
+# Entornos virtuales
+venv/
+env/
+ENV/
+
+# Base de datos local
+db.sqlite3
+
+# Archivos de sistema / IDE
+.DS_Store
+.vscode/
+.idea/
+*.log
+
+# Media y Estáticos recogidos
+/media/
+/static_root/
